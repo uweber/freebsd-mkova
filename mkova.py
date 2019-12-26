@@ -78,8 +78,9 @@ class OVFFile(object):
             SubElement(new_e, NS_RASD + 'AddressOnParent').text = str(address_on_parent)
         if host_resource is not None:
             SubElement(new_e, NS_RASD + 'HostResource').text = str(host_resource)
+        i = self.__instance
         self.__instance += 1
-        return new_e
+        return new_e, i
 
     def __add_network_section(self, envelope):
         network_section = SubElement(envelope, 'NetworkSection')
@@ -117,23 +118,23 @@ class OVFFile(object):
         SubElement(system, NS_VSSD + 'VirtualSystemType').text = 'vmx-08'
         self.__instance += 1
 
-        i = self.__add_item(vhw, f'{self.__cpus} virtual CPU(s)', 'Number of Virtual CPUs', 
+        i, _ = self.__add_item(vhw, f'{self.__cpus} virtual CPU(s)', 'Number of Virtual CPUs', 
             resource_type=3, quantity=self.__cpus, units='hertz * 10^6')
 
-        i = self.__add_item(vhw, f'{self.__memsize}MB of memory', 'Memory Size',
+        i, _ = self.__add_item(vhw, f'{self.__memsize}MB of memory', 'Memory Size',
             resource_type=4, quantity=self.__memsize, units='byte * 2^20')
 
-        i = self.__add_item(vhw, 'SCSI Controller 0', 'SCSI Controller',
+        i, scsi_id = self.__add_item(vhw, 'SCSI Controller 0', 'SCSI Controller',
             resource_type=6, resource_subtype='lsilogic', address=0)
         self.__add_config(i, "slotInfo.pciSlotNumber", "16")
 
-        i = self.__add_item(vhw, 'VirtualIDEController 0', 'IDE Controller',
+        i, _ = self.__add_item(vhw, 'VirtualIDEController 0', 'IDE Controller',
             resource_type=5, address=0)
 
-        i = self.__add_item(vhw, 'VirtualIDEController 1', 'IDE Controller',
+        i, _ = self.__add_item(vhw, 'VirtualIDEController 1', 'IDE Controller',
             resource_type=5, address=1)
 
-        i = self.__add_item(vhw, 'VirtualVideoCard', 'Virtual Video Card',
+        i, _ = self.__add_item(vhw, 'VirtualVideoCard', 'Virtual Video Card',
             resource_type=24, automatic_allocation='false')
         i.set(NS_OVF + 'required', 'false')
         self.__add_config(i, "enable3DSupport", "false")
@@ -142,13 +143,13 @@ class OVFFile(object):
         self.__add_config(i, "useAutoDetect", "false")
         self.__add_config(i, "videoRamSizeInKB", "4096")
 
-        i = self.__add_item(vhw, 'Hard Disk 1', 'Hard Disk',
-            resource_type=17, parent=3, address_on_parent=0,
+        i, _ = self.__add_item(vhw, 'Hard Disk 1', 'Hard Disk',
+            resource_type=17, parent=scsi_id, address_on_parent=0,
             host_resource='ovf:/disk/vmdisk1')
         self.__add_config(i, "backing.writeThrough", "false")
 
-        i = self.__add_item(vhw, 'Ethernet 1', 'VmxNet3 ethernet adapter on "VM Network"',
-            resource_type=10, resource_subtype='VmxNet3', parent=3, address_on_parent=7,
+        i, _ = self.__add_item(vhw, 'Ethernet 1', 'VmxNet3 ethernet adapter on "VM Network"',
+            resource_type=10, resource_subtype='VmxNet3', address_on_parent=7,
             automatic_allocation='true')
 
         self.__add_config(i, "slotInfo.pciSlotNumber", "160")
