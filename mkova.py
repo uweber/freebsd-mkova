@@ -24,9 +24,12 @@ def prettyfy(s):
 
 class OVFFile(object):
 
-    def __init__(self):
-        self.counter = Counter()
+    def __init__(self, vmdk, cpus=1, memsize=1024, disksize=10):
         self.__instance = 0
+        self.__vmdk = vmdk
+        self.__cpus = cpus
+        self.__memsize = memsize
+        self.__disksize = disksize
 
         ET.register_namespace("ovf", "http://schemas.dmtf.org/ovf/envelope/1")
         ET.register_namespace("cim", "http://schemas.dmtf.org/wbem/wscim/1/common")
@@ -36,27 +39,6 @@ class OVFFile(object):
         ET.register_namespace("vssd", "http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData")
         ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
 
-        self.envelope =  Element('Envelope')
-        self.envelope.set('xmlns', 'http://schemas.dmtf.org/ovf/envelope/1')
-        self.envelope.set(NS_VMW + 'buildId', 'build-2494585')
-        references = SubElement(self.envelope, 'References')
-        f = SubElement(references, 'File')
-        f.set(NS_OVF + "href", 'drive.vmdk')
-        f.set(NS_OVF + "id", self.__next_id('file'))
-        # f.set(NS_OVF + "size", "902624768")
-        f.set(NS_OVF + "size", "874553856")
-
-        disk_section = SubElement(self.envelope, 'DiskSection')
-        SubElement(disk_section, 'Info').text = 'Virtual disk information'
-        disk = SubElement(disk_section, 'Disk')
-        disk.set(NS_OVF + 'capacity', '40')
-        disk.set(NS_OVF + 'capacityAllocationUnits', 'byte * 2^30')
-        disk.set(NS_OVF + 'diskId', 'vmdisk1')
-        disk.set(NS_OVF + 'fileRef', 'file0')
-        disk.set(NS_OVF + 'format', 'http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized')
-
-        self.__add_network_section()
-        self.__add_virtual_system()
 
     def __add_child(self, e, name, text):
         new_e = SubElement(e, name)
@@ -99,29 +81,29 @@ class OVFFile(object):
         self.__instance += 1
         return new_e
 
-    def __add_network_section(self):
-        network_section = SubElement(self.envelope, 'NetworkSection')
+    def __add_network_section(self, envelope):
+        network_section = SubElement(envelope, 'NetworkSection')
         self.__add_child(network_section, 'Info', 'The list of logical networks')
         network = SubElement(network_section, 'Network')
         network.set(NS_OVF + 'name', 'VM Network')
         self.__add_child(network, 'Description', 'The VM Network network')
 
-    def __add_virtual_system(self):
-        vs = SubElement(self.envelope, 'VirtualSystem')
-        vs.set(NS_OVF + 'id', self.__next_id('vsystem'))
+    def __add_virtual_system(self, envelope):
+        vs = SubElement(envelope, 'VirtualSystem')
+        vs.set(NS_OVF + 'id', 'FreeBSD 12.1-RELEASE')
         self.__add_child(vs, 'Info', 'A virtual machine')
         self.__add_child(vs, 'Name', 'FreeBSD 12.1-RELEASE')
 
         oss = SubElement(vs, 'OperatingSystemSection')
-        oss.set(NS_OVF + 'id', '107')
+        oss.set(NS_OVF + 'id', '78')
         oss.set(NS_VMW + 'osType', 'freebsd64Guest')
         SubElement(oss, 'Info').text = 'The kind of installed guest operating system'
 
         product = SubElement(vs, 'ProductSection')
         SubElement(product, 'Info').text = 'Information about the installed software'
-        SubElement(product, 'Product').text = 'FreeBSD OS'
-        SubElement(product, 'Vendor').text = 'FreeBSD'
-        SubElement(product, 'Version').text = '12.1-RELEASE'
+        SubElement(product, 'Product').text = ''
+        SubElement(product, 'Vendor').text = ''
+        SubElement(product, 'Version').text = ''
 
         vhw = SubElement(vs, 'VirtualHardwareSection')
         SubElement(vhw, 'Info').text = 'Virtual hardware requirements'
@@ -135,11 +117,11 @@ class OVFFile(object):
         SubElement(system, NS_VSSD + 'VirtualSystemType').text = 'vmx-08'
         self.__instance += 1
 
-        i = self.__add_item(vhw, '2 virtual CPU(s)', 'Number of Virtual CPUs', 
-            resource_type=3, quantity=2, units='hertz * 10^6')
+        i = self.__add_item(vhw, f'{self.__cpus} virtual CPU(s)', 'Number of Virtual CPUs', 
+            resource_type=3, quantity=self.__cpus, units='hertz * 10^6')
 
-        i = self.__add_item(vhw, '4096MB of memory', 'Memory Size',
-            resource_type=4, quantity=4096, units='byte * 2^20')
+        i = self.__add_item(vhw, f'{self.__memsize}MB of memory', 'Memory Size',
+            resource_type=4, quantity=self.__memsize, units='byte * 2^20')
 
         i = self.__add_item(vhw, 'SCSI Controller 0', 'SCSI Controller',
             resource_type=6, resource_subtype='lsilogic', address=0)
@@ -190,18 +172,29 @@ class OVFFile(object):
         self.__add_config(vhw, "tools.syncTimeWithHost", "false")
         self.__add_config(vhw, "tools.toolsUpgradePolicy", "manual")
 
-    def __next_id(self, word):
-        s = word + str(self.counter[word])
-        self.counter[word] += 1
-        return s
+    def write_ovf(self, out):
+        envelope =  Element('Envelope')
+        envelope.set('xmlns', 'http://schemas.dmtf.org/ovf/envelope/1')
+        envelope.set(NS_VMW + 'buildId', 'build-2494585')
+        references = SubElement(envelope, 'References')
+        f = SubElement(references, 'File')
+        f.set(NS_OVF + "href", 'drive.vmdk')
+        f.set(NS_OVF + "id", 'file1')
+        f.set(NS_OVF + "size", str(os.path.getsize(self.__vmdk)))
 
-    def write(self, out):
-        ET.ElementTree(self.envelope).write(out, encoding='utf-8', xml_declaration=True)
+        disk_section = SubElement(envelope, 'DiskSection')
+        SubElement(disk_section, 'Info').text = 'Virtual disk information'
+        disk = SubElement(disk_section, 'Disk')
+        disk.set(NS_OVF + 'capacity', str(self.__disksize))
+        disk.set(NS_OVF + 'capacityAllocationUnits', 'byte * 2^30')
+        disk.set(NS_OVF + 'diskId', 'vmdisk1')
+        disk.set(NS_OVF + 'fileRef', 'file1')
+        disk.set(NS_OVF + 'format', 'http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized')
 
-ovf = OVFFile()
-b = BytesIO()
-ovf.write(b)
-ovf_content = prettyfy((b.getvalue().decode('utf-8')))
+        self.__add_network_section(envelope)
+        self.__add_virtual_system(envelope)
+        ET.ElementTree(envelope).write(out, encoding='utf-8', xml_declaration=True)
+
 
 parser = argparse.ArgumentParser(description='convert VMDK to OVA')
 parser.add_argument('vmdk', metavar='vmdkfile', type=str,
@@ -211,7 +204,7 @@ parser.add_argument('-c', '--cpus', metavar='cpus', type=int,
 parser.add_argument('-m', '--memsize', metavar='memsize', type=int,
                     default=1024, help='amount of memory in MB')
 parser.add_argument('-d', '--disksize', metavar='disksize', type=int,
-                    default=20, help='disk size in GB')
+                    default=10, help='disk size in GB')
 
 args = parser.parse_args()
 
@@ -219,6 +212,11 @@ print (args.vmdk)
 print (args.cpus)
 print (args.memsize)
 print (args.disksize)
+
+ovf = OVFFile(args.vmdk, cpus=args.cpus,memsize=args.memsize, disksize=args.disksize)
+b = BytesIO()
+ovf.write_ovf(b)
+ovf_content = prettyfy((b.getvalue().decode('utf-8')))
 
 ova_path = 'x.ova'
 if os.path.exists(ova_path):
