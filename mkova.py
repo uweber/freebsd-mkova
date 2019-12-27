@@ -22,14 +22,20 @@ def prettyfy(s):
     dom = xml.dom.minidom.parseString(s)
     return dom.toprettyxml(indent='  ')
 
-class OVFFile(object):
+class OVAFile(object):
 
-    def __init__(self, vmdk, cpus=1, memsize=1024, disksize=10):
+    def __init__(self, vmdk, cpus=1, memsize=1024, disksize=10, name=None):
         self.__instance = 0
         self.__vmdk = vmdk
         self.__cpus = cpus
         self.__memsize = memsize
         self.__disksize = disksize
+        basename = os.path.basename(vmdk)
+        self.__vmdk_barename = os.path.splitext(basename)[0]
+        if name is None:
+            self.__name = self.__vmdk_barename
+        else:
+            self.__name = name
 
         ET.register_namespace("ovf", "http://schemas.dmtf.org/ovf/envelope/1")
         ET.register_namespace("cim", "http://schemas.dmtf.org/wbem/wscim/1/common")
@@ -91,9 +97,9 @@ class OVFFile(object):
 
     def __add_virtual_system(self, envelope):
         vs = SubElement(envelope, 'VirtualSystem')
-        vs.set(NS_OVF + 'id', 'FreeBSD 12.1-RELEASE')
+        vs.set(NS_OVF + 'id', self.__name)
         self.__add_child(vs, 'Info', 'A virtual machine')
-        self.__add_child(vs, 'Name', 'FreeBSD 12.1-RELEASE')
+        self.__add_child(vs, 'Name', self.__name)
 
         oss = SubElement(vs, 'OperatingSystemSection')
         oss.set(NS_OVF + 'id', '78')
@@ -113,7 +119,7 @@ class OVFFile(object):
         system = SubElement(vhw, 'System')
         SubElement(system, NS_VSSD + 'ElementName').text = 'Virtual Hardware Family'
         SubElement(system, NS_VSSD + 'InstanceID').text = str(self.__instance)
-        SubElement(system, NS_VSSD + 'VirtualSystemIdentifier').text = 'FreeBSD 12.1-RELEASE'
+        SubElement(system, NS_VSSD + 'VirtualSystemIdentifier').text = self.__name
         # This is the VM format type
         SubElement(system, NS_VSSD + 'VirtualSystemType').text = 'vmx-08'
         self.__instance += 1
@@ -173,13 +179,13 @@ class OVFFile(object):
         self.__add_config(vhw, "tools.syncTimeWithHost", "false")
         self.__add_config(vhw, "tools.toolsUpgradePolicy", "manual")
 
-    def write_ovf(self, out):
+    def __write_ovf(self, out):
         envelope =  Element('Envelope')
         envelope.set('xmlns', 'http://schemas.dmtf.org/ovf/envelope/1')
         envelope.set(NS_VMW + 'buildId', 'build-2494585')
         references = SubElement(envelope, 'References')
         f = SubElement(references, 'File')
-        f.set(NS_OVF + "href", 'drive.vmdk')
+        f.set(NS_OVF + "href", self.__vmdk_barename + '-drive.vmdk')
         f.set(NS_OVF + "id", 'file1')
         f.set(NS_OVF + "size", str(os.path.getsize(self.__vmdk)))
 
@@ -196,6 +202,22 @@ class OVFFile(object):
         self.__add_virtual_system(envelope)
         ET.ElementTree(envelope).write(out, encoding='utf-8', xml_declaration=True)
 
+    def write(self, outpath):
+        b = BytesIO()
+        self.__write_ovf(b)
+        ovf_content = prettyfy((b.getvalue().decode('utf-8')))
+        if os.path.exists(outpath):
+            os.unlink(outpath)
+
+        ova = tarfile.open(outpath, 'x')
+
+        ovf_temp = tempfile.NamedTemporaryFile(delete=False)
+        ovf_temp.write(ovf_content.encode('utf-8'))
+        ovf_temp.close()
+        ova.add(ovf_temp.name, self.__vmdk_barename + '.ovf')
+        os.unlink(ovf_temp.name)
+        ova.add(self.__vmdk, self.__vmdk_barename + '-drive.vmdk')
+        ova.close()
 
 parser = argparse.ArgumentParser(description='convert VMDK to OVA')
 parser.add_argument('vmdk', metavar='vmdkfile', type=str,
@@ -209,25 +231,5 @@ parser.add_argument('-d', '--disksize', metavar='disksize', type=int,
 
 args = parser.parse_args()
 
-print (args.vmdk)
-print (args.cpus)
-print (args.memsize)
-print (args.disksize)
-
-ovf = OVFFile(args.vmdk, cpus=args.cpus,memsize=args.memsize, disksize=args.disksize)
-b = BytesIO()
-ovf.write_ovf(b)
-ovf_content = prettyfy((b.getvalue().decode('utf-8')))
-
-ova_path = 'x.ova'
-if os.path.exists(ova_path):
-    os.unlink(ova_path)
-
-ova = tarfile.open(ova_path, 'x')
-
-ovf_temp = tempfile.NamedTemporaryFile(delete=False)
-ovf_temp.write(ovf_content.encode('utf-8'))
-ovf_temp.close()
-ova.add(ovf_temp.name, 'freebsd.ovf')
-os.unlink(ovf_temp.name)
-ova.add(args.vmdk, 'drive.vmdk')
+ova = OVAFile(args.vmdk, cpus=args.cpus,memsize=args.memsize, disksize=args.disksize)
+ova.write('x.ova')
