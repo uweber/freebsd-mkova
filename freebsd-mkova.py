@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
 import argparse
+import hashlib
 import os
 import struct
 import tarfile
 import tempfile
 import xml.dom.minidom
+import zlib
 
 from collections import Counter
 from io import BytesIO
@@ -14,7 +16,6 @@ from random import randint
 from uuid import uuid1
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement, tostring
-import zlib
 
 NS_CIM  = "{http://schemas.dmtf.org/wbem/wscim/1/common}"
 NS_OVF  = "{http://schemas.dmtf.org/ovf/envelope/1}"
@@ -59,6 +60,15 @@ class VMDKException(Exception):
         self.msg = msg
     def __str__(self):
         return self.msg
+
+def sha1sum(filename):
+    h  = hashlib.sha1()
+    b  = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(filename, 'rb', buffering=0) as f:
+        for n in iter(lambda : f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
 
 def pad_to_sector(b):
     """
@@ -466,12 +476,26 @@ class OVAFile(object):
         stream_optimize_vmdk(vmdk_monolith, vmdk_stream, self.__disksize)
         vmdk_stream.close()
 
-        ova.add(ovf_temp.name, self.__vmdk_barename + '.ovf')
-        ova.add(vmdk_stream.name, self.__vmdk_barename + '-drive.vmdk')
+        ovf_name = self.__vmdk_barename + '.ovf'
+        mf_name = self.__vmdk_barename + '.mf'
+        vmdk_name = self.__vmdk_barename + '-drive.vmdk'
+
+        ovf_sha1 = sha1sum(ovf_temp.name)
+        vmdk_sha1 = sha1sum(vmdk_stream.name)
+
+        mf_temp = tempfile.NamedTemporaryFile(mode='w', delete=False)
+        mf_temp.write(f'SHA1 ({ovf_name}) = {ovf_sha1}\n')
+        mf_temp.write(f'SHA1 ({vmdk_name}) = {vmdk_sha1}\n')
+        mf_temp.close()
+
+        ova.add(ovf_temp.name, ovf_name)
+        ova.add(vmdk_stream.name, vmdk_name)
+        ova.add(mf_temp.name, mf_name)
         ova.close()
 
         os.unlink(ovf_temp.name)
         os.unlink(vmdk_stream.name)
+        os.unlink(mf_temp.name)
 
 parser = argparse.ArgumentParser(description='FreeBSD release/snapshot VMDK to OVA converter')
 parser.add_argument('vmdk', metavar='vmdkfile', type=str,
