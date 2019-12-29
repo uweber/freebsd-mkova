@@ -97,7 +97,7 @@ def stream_optimize_vmdk(inf, outf, newsize):
     if magicNumber != MAGIC_NUMBER:
         raise VMDKException('Invalid magic number in input file, not a valid VMDK?')
 
-    sectors = capacity
+    inputCapacity = capacity
 
     # Override some header values
     version = 3
@@ -105,6 +105,10 @@ def stream_optimize_vmdk(inf, outf, newsize):
     flags = 0x30001
     compressAlgorithm = 1 # deflate
     capacity = ceil(newsize*1024*1024*1024/SECTOR_SIZE)
+
+    if capacity < inputCapacity:
+        raise VMDKException('requested image size is less than the original file')
+
     # Round up to GT size
     sectorsInGT = grainSize * numGTEsPerGT
     newGTs = ceil(capacity/sectorsInGT)
@@ -114,7 +118,7 @@ def stream_optimize_vmdk(inf, outf, newsize):
                 rgdOffset, gdOffset, overHead, uncleanShutdown,
                 b'\n', b' ', b'\r', b'\n', compressAlgorithm ]
 
-    totalGrains = ceil(sectors/grainSize)
+    totalGrains = ceil(inputCapacity/grainSize)
     totalGTs = ceil(totalGrains/numGTEsPerGT)
 
     inf.seek(gdOffset * SECTOR_SIZE)
