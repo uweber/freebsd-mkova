@@ -473,7 +473,7 @@ class OVAFile(object):
         os.unlink(ovf_temp.name)
         os.unlink(vmdk_stream.name)
 
-parser = argparse.ArgumentParser(description='convert VMDK to OVA')
+parser = argparse.ArgumentParser(description='FreeBSD release/snapshot VMDK to OVA converter')
 parser.add_argument('vmdk', metavar='vmdkfile', type=str,
                     help='VMDK file')
 parser.add_argument('-c', '--cpus', metavar='cpus', type=int,
