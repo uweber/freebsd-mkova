@@ -26,6 +26,8 @@ NS_XSI = "{http://www.w3.org/2001/XMLSchema-instance}"
 # VMDK part
 SECTOR_SIZE = 512
 
+MAGIC_NUMBER    = 0x564D444B # VMDK
+
 MARKER_EOS      = 0 # end of stream
 MARKER_GT       = 1 # grain table
 MARKER_GD       = 2 # grain directory
@@ -51,6 +53,12 @@ ddb.geometry.heads = "255"
 ddb.geometry.sectors = "63"
 ddb.longContentID = "#longCID#"
 ddb.virtualHWVersion = "7"'''
+
+class VMDKException(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+    def __str__(self):
+        return self.msg
 
 def pad_to_sector(b):
     """
@@ -86,6 +94,8 @@ def stream_optimize_vmdk(inf, outf, newsize):
         uncleanShutdown, singleEndLineChar, nonEndLineChar, doubleEndLineChar1, \
         doubleEndLineChar2, compressAlgorithm  = fields[:-433]
 
+    if magicNumber != MAGIC_NUMBER:
+        raise VMDKException('Invalid magic number in input file, not a valid VMDK?')
 
     sectors = capacity
 
@@ -181,7 +191,7 @@ def stream_optimize_vmdk(inf, outf, newsize):
             compressedGrainData = zlib.compress(grainData)
 
             if outf.tell() % SECTOR_SIZE:
-                raise Exception
+                raise VMDKException('Invalid output offset while writing grain data')
 
             # get the offset (in sectors) of the grain in output file
             # and override current offset in the current GrainTable
@@ -198,7 +208,7 @@ def stream_optimize_vmdk(inf, outf, newsize):
 
         # Write current GrainTable
         if outf.tell() % SECTOR_SIZE:
-            raise Exception
+            raise VMDKException('Invalid output offset while writing GrainTable marker')
         # First GT marker with size
         gt_marker = create_marker(MARKER_GT, int(len(gt) * 4 / SECTOR_SIZE), 0)
         outf.write(gt_marker)
@@ -206,7 +216,7 @@ def stream_optimize_vmdk(inf, outf, newsize):
         # Get GTi offset (in sectors) in output file
         pos = outf.tell()
         if pos % SECTOR_SIZE:
-            raise Exception
+            raise VMDKException('Invalid output offset while writing GrainTable data')
         pos = int(pos / SECTOR_SIZE)
         # Write GTi content
         outf.write(struct.pack(f'{numGTEsPerGT}I', *gt))
@@ -234,7 +244,7 @@ def stream_optimize_vmdk(inf, outf, newsize):
     # in the output file
     pos = outf.tell()
     if pos % SECTOR_SIZE:
-        raise Exception
+        raise VMDKException('Invalid output offset while writing GrainDirectory data')
     gdOffset = int(pos / SECTOR_SIZE)
 
     # Write new GrainDirectory data
