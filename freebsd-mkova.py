@@ -16,12 +16,12 @@ from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement, tostring
 import zlib
 
-NS_CIM = "{http://schemas.dmtf.org/wbem/wscim/1/common}"
-NS_OVF = "{http://schemas.dmtf.org/ovf/envelope/1}"
+NS_CIM  = "{http://schemas.dmtf.org/wbem/wscim/1/common}"
+NS_OVF  = "{http://schemas.dmtf.org/ovf/envelope/1}"
 NS_RASD = "{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData}"
-NS_VMW = "{http://www.vmware.com/schema/ovf}"
+NS_VMW  = "{http://www.vmware.com/schema/ovf}"
 NS_VSSD = "{http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData}"
-NS_XSI = "{http://www.w3.org/2001/XMLSchema-instance}"
+NS_XS   = "{http://www.w3.org/2001/XMLSchema-instance}"
 
 # VMDK part
 SECTOR_SIZE = 512
