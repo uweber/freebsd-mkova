@@ -313,7 +313,7 @@ class OVAFile(object):
 
     def __add_item(self, e, name, desc, resource_type=None, resource_subtype=None,
       units=None, quantity=None, address=None, automatic_allocation=None, parent=None,
-      address_on_parent=None, host_resource=None):
+      address_on_parent=None, host_resource=None, connection=None):
         new_e = SubElement(e, 'Item')
         if address is not None:
             SubElement(new_e, NS_RASD + 'Address').text = str(address)
@@ -323,6 +323,8 @@ class OVAFile(object):
             SubElement(new_e, NS_RASD + 'AllocationUnits').text = str(units)
         if automatic_allocation is not None:
             SubElement(new_e, NS_RASD + 'AutomaticAllocation').text = str(automatic_allocation)
+        if connection is not None:
+            SubElement(new_e, NS_RASD + 'Connection').text = str(connection)
         SubElement(new_e, NS_RASD + 'Description').text = desc
         SubElement(new_e, NS_RASD + 'ElementName').text = name
         if host_resource is not None:
@@ -409,7 +411,7 @@ class OVAFile(object):
 
         i, _ = self.__add_item(vhw, 'Ethernet 1', 'VmxNet3 ethernet adapter on "VM Network"',
             resource_type=10, resource_subtype='VmxNet3', address_on_parent=7,
-            automatic_allocation='true')
+            automatic_allocation='true', connection="VM Network")
 
         self.__add_config(i, "slotInfo.pciSlotNumber", "160")
         self.__add_config(i, "wakeOnLanEnabled", "true")
