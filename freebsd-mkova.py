@@ -315,27 +315,27 @@ class OVAFile(object):
       units=None, quantity=None, address=None, automatic_allocation=None, parent=None,
       address_on_parent=None, host_resource=None):
         new_e = SubElement(e, 'Item')
-        SubElement(new_e, NS_RASD + 'ElementName').text = name
-        SubElement(new_e, NS_RASD + 'Description').text = desc
-        SubElement(new_e, NS_RASD + 'InstanceID').text = str(self.__instance)
-        if resource_type is not None:
-            SubElement(new_e, NS_RASD + 'ResourceType').text = str(resource_type)
-        if resource_subtype is not None:
-            SubElement(new_e, NS_RASD + 'ResourceSubType').text = str(resource_subtype)
-        if units is not None:
-            SubElement(new_e, NS_RASD + 'AllocationUnits').text = str(units)
-        if quantity is not None:
-            SubElement(new_e, NS_RASD + 'VirtualQuantity').text = str(quantity)
         if address is not None:
             SubElement(new_e, NS_RASD + 'Address').text = str(address)
-        if automatic_allocation is not None:
-            SubElement(new_e, NS_RASD + 'AutomaticAllocation').text = str(automatic_allocation)
-        if parent is not None:
-            SubElement(new_e, NS_RASD + 'Parent').text = str(parent)
         if address_on_parent is not None:
             SubElement(new_e, NS_RASD + 'AddressOnParent').text = str(address_on_parent)
+        if units is not None:
+            SubElement(new_e, NS_RASD + 'AllocationUnits').text = str(units)
+        if automatic_allocation is not None:
+            SubElement(new_e, NS_RASD + 'AutomaticAllocation').text = str(automatic_allocation)
+        SubElement(new_e, NS_RASD + 'Description').text = desc
+        SubElement(new_e, NS_RASD + 'ElementName').text = name
         if host_resource is not None:
             SubElement(new_e, NS_RASD + 'HostResource').text = str(host_resource)
+        SubElement(new_e, NS_RASD + 'InstanceID').text = str(self.__instance)
+        if parent is not None:
+            SubElement(new_e, NS_RASD + 'Parent').text = str(parent)
+        if resource_subtype is not None:
+            SubElement(new_e, NS_RASD + 'ResourceSubType').text = str(resource_subtype)
+        if resource_type is not None:
+            SubElement(new_e, NS_RASD + 'ResourceType').text = str(resource_type)
+        if quantity is not None:
+            SubElement(new_e, NS_RASD + 'VirtualQuantity').text = str(quantity)
         i = self.__instance
         self.__instance += 1
         return new_e, i
