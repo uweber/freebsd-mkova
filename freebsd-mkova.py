@@ -466,6 +466,7 @@ class OVAFile(object):
             os.unlink(outpath)
 
         ova = tarfile.open(outpath, 'x')
+        ova.format = tarfile.GNU_FORMAT
 
         ovf_temp = tempfile.NamedTemporaryFile(delete=False)
         ovf_temp.write(ovf)
